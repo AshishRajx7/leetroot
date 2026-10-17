@@ -1,0 +1,382 @@
+/* LeetRoot - Real-World DSA Pattern Finder Styles */
+
+:root {
+  --lr-bg-panel: rgba(15, 23, 42, 0.94);
+  --lr-bg-card: rgba(30, 41, 59, 0.7);
+  --lr-bg-card-hover: rgba(51, 65, 85, 0.8);
+  --lr-border: rgba(148, 163, 184, 0.15);
+  --lr-border-glow: rgba(245, 158, 11, 0.4);
+  --lr-primary: #f59e0b;
+  --lr-primary-hover: #d97706;
+  --lr-text-main: #f8fafc;
+  --lr-text-muted: #94a3b8;
+  --lr-text-dim: #64748b;
+  --lr-green: #10b981;
+  --lr-blue: #38bdf8;
+  --lr-purple: #c084fc;
+  --lr-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --lr-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+/* Floating Trigger Button on LeetCode page */
+#leetroot-floating-trigger {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999998;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #f8fafc;
+  border: 1px solid var(--lr-primary);
+  border-radius: 9999px;
+  padding: 10px 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.25), 0 4px 6px rgba(0,0,0,0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+}
+
+#leetroot-floating-trigger:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 12px 24px rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+}
+
+#leetroot-floating-trigger .lr-badge {
+  background: var(--lr-primary);
+  color: #0f172a;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+/* Slide-out Sidebar Panel */
+#leetroot-sidebar {
+  position: fixed;
+  top: 0;
+  right: -480px;
+  width: 460px;
+  height: 100vh;
+  z-index: 999999;
+  background: var(--lr-bg-panel);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--lr-border);
+  box-shadow: var(--lr-shadow);
+  display: flex;
+  flex-direction: column;
+  color: var(--lr-text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+#leetroot-sidebar.lr-open {
+  right: 0;
+}
+
+/* Sidebar Header */
+.lr-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--lr-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.lr-logo-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lr-logo-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+}
+
+.lr-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.lr-subtitle {
+  font-size: 11px;
+  color: var(--lr-primary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lr-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.lr-btn-icon {
+  background: transparent;
+  border: 1px solid var(--lr-border);
+  color: var(--lr-text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lr-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Tags Filter Row */
+.lr-tags-bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--lr-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  background: rgba(30, 41, 59, 0.4);
+}
+
+.lr-tag-chip {
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid var(--lr-border);
+  color: var(--lr-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lr-tag-chip:hover, .lr-tag-chip.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: var(--lr-primary);
+  color: #fbbf24;
+}
+
+/* Main Content Area */
+.lr-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lr-content::-webkit-scrollbar {
+  width: 6px;
+}
+.lr-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 3px;
+}
+
+/* Example Card */
+.lr-card {
+  background: var(--lr-bg-card);
+  border: 1px solid var(--lr-border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.lr-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: var(--lr-bg-card-hover);
+}
+
+/* Card Header: Repo info + Stars */
+.lr-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.lr-repo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lr-repo-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lr-repo-meta {
+  font-size: 11px;
+  color: var(--lr-text-muted);
+  font-family: var(--lr-font-mono);
+  word-break: break-all;
+}
+
+.lr-stars-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Real-world rationale box */
+.lr-rationale-box {
+  background: rgba(15, 23, 42, 0.7);
+  border-left: 3px solid var(--lr-primary);
+  padding: 10px 12px;
+  border-radius: 0 6px 6px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+.lr-rationale-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lr-primary);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Code Snippet Box */
+.lr-snippet-container {
+  background: #090d16;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.lr-snippet-toolbar {
+  background: rgba(30, 41, 59, 0.5);
+  padding: 6px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--lr-text-muted);
+  font-family: var(--lr-font-mono);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.lr-code-block {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--lr-font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  max-height: 240px;
+  white-space: pre;
+}
+
+/* Card Footer: Source URL Link & Copy Button */
+.lr-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.lr-source-link {
+  color: var(--lr-blue);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.lr-source-link:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
+.lr-copy-btn {
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid var(--lr-border);
+  color: var(--lr-text-muted);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lr-copy-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: #fff;
+}
+
+/* Empty State / Loading State */
+.lr-loading-state, .lr-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--lr-text-muted);
+}
+
+.lr-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(245, 158, 11, 0.2);
+  border-top-color: var(--lr-primary);
+  border-radius: 50%;
+  animation: lr-spin 0.8s linear infinite;
+  margin: 0 auto 16px auto;
+}
+
+@keyframes lr-spin {
+  to { transform: rotate(360deg); }
+}
+
+.lr-empty-btn {
+  background: var(--lr-primary);
+  color: #0f172a;
+  border: none;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: background 0.15s ease;
+}
+
+.lr-empty-btn:hover {
+  background: var(--lr-primary-hover);
+}

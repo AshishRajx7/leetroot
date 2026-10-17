@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeetRoot Settings</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <div class="popup-logo">
+        <span class="logo-icon">⚡</span>
+        <div>
+          <div class="logo-title">LeetRoot</div>
+          <div class="logo-version">v1.0.0 &bull; Phase 3</div>
+        </div>
+      </div>
+      <div id="status-pill" class="status-pill offline">
+        <span class="dot"></span>
+        <span id="status-text">Connecting...</span>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-examples">-</div>
+        <div class="stat-label">Verified Examples</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-repos">-</div>
+        <div class="stat-label">Curated Repos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-tags">-</div>
+        <div class="stat-label">DSA Tags</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-problems">-</div>
+        <div class="stat-label">LeetCode Problems</div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <label for="api-url" class="field-label">Engine API Endpoint</label>
+      <div class="input-group">
+        <input type="text" id="api-url" value="http://localhost:4000/api" placeholder="http://localhost:4000/api">
+        <button id="btn-save-url" class="btn-primary">Save</button>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <a href="https://leetcode.com/problems/merge-k-sorted-lists/" target="_blank" class="btn-secondary">
+        Try on Merge k Sorted Lists &rarr;
+      </a>
+      <a href="https://leetcode.com/problems/implement-trie-prefix-tree/" target="_blank" class="btn-secondary">
+        Try on Implement Trie &rarr;
+      </a>
+    </div>
+
+    <div class="footer">
+      <span>Real-World DSA Pattern Finder</span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
