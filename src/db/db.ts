@@ -1,5 +1,10 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
-import { config } from '../config/env';
+import {
+  config,
+  validateDatabaseSafety,
+  extractDatabaseName,
+} from '../config/env';
+import { maskConnectionUrl } from '../config/readiness';
 import fs from 'fs';
 import path from 'path';
 
@@ -42,6 +47,25 @@ export function getNextId(table: keyof InMemoryDb): number {
 }
 
 export async function initDb(): Promise<boolean> {
+  const isTest = process.env.NODE_ENV === 'test' || config.isTest;
+
+  if (isTest) {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new Error(
+        `[DB ERROR] Database initialization in test mode strictly requires process.env.NODE_ENV === 'test'. ` +
+        `Current process.env.NODE_ENV is '${process.env.NODE_ENV}'.`
+      );
+    }
+    validateDatabaseSafety(config.database.url, 'test', 'leetroot_test');
+    const dbName = extractDatabaseName(config.database.url);
+    if (dbName !== 'leetroot_test') {
+      throw new Error(
+        `[DB ERROR] Database connection must strictly target 'leetroot_test' in test mode. ` +
+        `Target is '${dbName}' from '${maskConnectionUrl(config.database.url)}'.`
+      );
+    }
+  }
+
   try {
     pool = new Pool({
       connectionString: config.database.url,
@@ -51,7 +75,7 @@ export async function initDb(): Promise<boolean> {
 
     const client = await pool.connect();
     isPostgresAvailable = true;
-    console.log('[DB] Successfully connected to PostgreSQL at', config.database.url.replace(/:[^:@]*@/, ':****@'));
+    console.log('[DB] Successfully connected to PostgreSQL at', maskConnectionUrl(config.database.url));
     
     // Execute schema migrations
     const schemaPath = path.join(__dirname, 'schema.sql');
@@ -63,8 +87,19 @@ export async function initDb(): Promise<boolean> {
     client.release();
     return true;
   } catch (err: any) {
-    console.warn('[DB] PostgreSQL connection failed (will use memory store fallback):', err.message);
     isPostgresAvailable = false;
+    if (pool) {
+      try {
+        await pool.end();
+      } catch {}
+      pool = null;
+    }
+    if (isTest) {
+      throw new Error(
+        `[DB ERROR] PostgreSQL connection failed in test mode: ${err.message}. Refusing in-memory fallback.`
+      );
+    }
+    console.warn('[DB] PostgreSQL connection failed (will use memory store fallback):', err.message);
     return false;
   }
 }
@@ -83,8 +118,16 @@ export function getIsPostgresConnected(): boolean {
   return isPostgresAvailable;
 }
 
+export function getDbPool(): Pool | null {
+  return pool;
+}
+
 export async function closeDb(): Promise<void> {
   if (pool) {
-    await pool.end();
+    try {
+      await pool.end();
+    } catch {}
+    pool = null;
   }
+  isPostgresAvailable = false;
 }

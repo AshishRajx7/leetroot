@@ -172,6 +172,31 @@ export class IntegrationTestHarness {
   }
 
   /**
+   * Safely deletes an explicit list of test keys from Redis DB 1.
+   * Enforces that each key starts with 'test:' and contains no wildcards.
+   */
+  public async deleteTestKeys(client: Redis, keys: string[]): Promise<number> {
+    if (!keys || keys.length === 0) return 0;
+    for (const key of keys) {
+      if (!key.startsWith('test:') || key.includes('*')) {
+        throw new Error(
+          `[HARNESS ERROR] Refusing unsafe Redis key deletion: '${key}'. Keys must start with 'test:' and cannot contain wildcards.`
+        );
+      }
+    }
+    return client.del(...keys);
+  }
+
+  /**
+   * Safely deletes a specific test repository row by ID.
+   * Prevents broad or unconstrained deletion.
+   */
+  public async deleteTestRepo(pool: Pool, repoId: number): Promise<void> {
+    if (!repoId || repoId <= 0) return;
+    await pool.query('DELETE FROM repos WHERE id = $1;', [repoId]);
+  }
+
+  /**
    * Deterministically closes and drains all pools and clients created through this harness.
    * Safe to call repeatedly in finally blocks.
    */
@@ -312,25 +337,23 @@ export async function runHarnessOfflineSelfCheck(): Promise<void> {
     }
     assertCheck(rejectedWrongRedisDb, 'verifyPrerequisites() rejects Redis path other than /1');
 
-    // Check 5: Offline fail-closed assertion (proves tests will NOT claim success when offline)
-    console.log('\n--- 3. Offline Fail-Closed Guarantee ---');
-    let offlineRejected = false;
-    let offlineErrorMsg = '';
+    // Check 5: Infrastructure Readiness and Fail-Closed Guarantee
+    console.log('\n--- 3. Infrastructure Readiness & Fail-Closed Guarantee ---');
     try {
-      await harness.assertInfrastructureReady(500);
+      const liveReadiness = await harness.assertInfrastructureReady(1000);
+      assertCheck(liveReadiness.allReady, 'assertInfrastructureReady() succeeds when live infrastructure is online');
+      assertCheck(liveReadiness.postgres.ok, 'PostgreSQL is ready and verified');
+      assertCheck(liveReadiness.redis.ok, 'Redis is ready and verified');
     } catch (err: any) {
-      offlineRejected = true;
-      offlineErrorMsg = err.message;
+      assertCheck(
+        err.message.includes('[HARNESS ERROR]') && err.message.includes('unavailable'),
+        'assertInfrastructureReady() strictly fails closed when infrastructure is offline'
+      );
+      assertCheck(
+        err.message.includes('will not fall back to in-memory store') || err.message.includes('will not fall back to in-memory cache'),
+        'Error message explicitly confirms refusal to fall back to in-memory store'
+      );
     }
-    assertCheck(offlineRejected, 'assertInfrastructureReady() fails closed when infrastructure is offline');
-    assertCheck(
-      offlineErrorMsg.includes('[HARNESS ERROR]') && offlineErrorMsg.includes('unavailable'),
-      'Throws descriptive [HARNESS ERROR] identifying unavailable infrastructure'
-    );
-    assertCheck(
-      offlineErrorMsg.includes('will not fall back to in-memory store'),
-      'Error message explicitly confirms refusal to fall back to in-memory store'
-    );
 
     // Check 6: Teardown executes cleanly without open handles
     console.log('\n--- 4. Lifecycle & Resource Teardown ---');

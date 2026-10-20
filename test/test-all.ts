@@ -1,5 +1,5 @@
 ﻿import { initDb, closeDb } from '../src/db/db';
-import { initRedis } from '../src/redis/client';
+import { initRedis, closeRedis } from '../src/redis/client';
 import { scanFileContent } from '../src/parser/tree-sitter';
 import { extractSnippetBounds } from '../src/parser/snippet-extractor';
 import { verifySnippetWithNIM, VerificationStatus, setMockClientForTesting, resetMockClientForTesting } from '../src/llm/nim-client';
@@ -185,6 +185,7 @@ async function runTestSuite() {
   } finally {
     server.close();
     await closeDb();
+    await closeRedis();
   }
 
   console.log(`\nðŸŽ‰ ALL ${passedTests}/${totalTests} TESTS PASSED PERFECTLY!\n`);
