@@ -169,12 +169,32 @@ export async function cacheDelPattern(pattern: string): Promise<number> {
   let count = 0;
   if (isRedisAvailable && redisClient) {
     try {
-      const keys = await redisClient.keys(pattern);
-      if (keys.length > 0) {
-        count = await redisClient.del(...keys);
+      // Use cursor-based SCAN instead of blocking KEYS command
+      let cursor = '0';
+      const keysToDelete: string[] = [];
+      do {
+        const [nextCursor, matchedKeys] = await redisClient.scan(
+          cursor,
+          'MATCH',
+          pattern,
+          'COUNT',
+          100
+        );
+        cursor = nextCursor;
+        if (matchedKeys && matchedKeys.length > 0) {
+          keysToDelete.push(...matchedKeys);
+        }
+      } while (cursor !== '0');
+
+      if (keysToDelete.length > 0) {
+        for (let i = 0; i < keysToDelete.length; i += 100) {
+          const chunk = keysToDelete.slice(i, i + 100);
+          count += await redisClient.del(...chunk);
+        }
       }
       return count;
-    } catch (err) {
+    } catch (err: any) {
+      console.error(`[Redis Error] Failed to delete pattern '${pattern}':`, err.message);
       if (isTest) {
         throw err;
       }

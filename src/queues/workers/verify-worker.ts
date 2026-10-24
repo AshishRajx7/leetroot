@@ -1,4 +1,4 @@
-﻿import { Worker, Job } from 'bullmq';
+import { Worker, Job } from 'bullmq';
 import { config } from '../../config/env';
 import { getIsRedisConnected } from '../../redis/client';
 import { QUEUE_NAMES, LLMVerifyJobData } from '../queue-manager';
@@ -41,7 +41,7 @@ export async function processVerifyJob(data: LLMVerifyJobData): Promise<{
     return { verified: false, status: verification.status, error: verification.error };
   }
 
-  // Insert verified code example
+  // Insert verified code example (idempotent across duplicate verification jobs / retries)
   const exampleId = await insertCodeExample({
     repoId,
     scanId,
@@ -55,6 +55,7 @@ export async function processVerifyJob(data: LLMVerifyJobData): Promise<{
     rationale: verification.rationale,
     productionContext: verification.productionContext,
     confidenceScore: verification.confidence,
+    isTruncated: candidate.isTruncated,
   });
 
   // Link all verified tags
@@ -66,7 +67,7 @@ export async function processVerifyJob(data: LLMVerifyJobData): Promise<{
     });
     await linkExampleTag(exampleId, tagId);
 
-    // Invalidate Redis cache immediately for this tag so Phase 3 gets fresh data!
+    // Invalidate Redis cache immediately for this tag and affected problems so Phase 3 gets fresh data!
     await invalidateExamplesCache(tagSlug);
   }
 

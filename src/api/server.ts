@@ -1,6 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { apiRouter } from './routes';
+import { apiRouter, apiV1Router } from './routes';
 
 export function createServer(): Express {
   const app = express();
@@ -28,7 +28,8 @@ export function createServer(): Express {
     next();
   });
 
-  // API router
+  // API routers: canonical v1 router and general router
+  app.use('/api/v1', apiV1Router);
   app.use('/api', apiRouter);
 
   // Root welcome / inspection page
@@ -54,10 +55,16 @@ export function createServer(): Express {
       </head>
       <body>
         <div class="container">
-          <h1>⚡ LeetRoot API <span class="badge">Phase 1 Live</span></h1>
+          <h1>⚡ LeetRoot API <span class="badge">Canonical v1 Live</span></h1>
           <p>Real-World DSA Pattern Finder Engine & Public Dataset API. Bridges the gap between grinding LeetCode and writing production engineering code.</p>
           
-          <h3>Available Endpoints</h3>
+          <h3>Canonical Endpoint</h3>
+          <div class="endpoint">
+            <span><span class="method">GET</span> /api/v1/problems/:slug/examples?limit=5</span>
+            <a href="/api/v1/problems/merge-k-sorted-lists/examples?limit=5" target="_blank">Try it &rarr;</a>
+          </div>
+
+          <h3>Legacy / Utility Endpoints</h3>
           <div class="endpoint">
             <span><span class="method">GET</span> /api/examples/by-tag?tags=heap-priority-queue</span>
             <a href="/api/examples/by-tag?tags=heap-priority-queue" target="_blank">Try it &rarr;</a>

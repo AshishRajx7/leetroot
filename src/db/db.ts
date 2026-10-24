@@ -77,14 +77,28 @@ export async function initDb(): Promise<boolean> {
     isPostgresAvailable = true;
     console.log('[DB] Successfully connected to PostgreSQL at', maskConnectionUrl(config.database.url));
     
-    // Execute schema migrations
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const sql = fs.readFileSync(schemaPath, 'utf8');
-      await client.query(sql);
-      console.log('[DB] Applied schema.sql successfully');
+    try {
+      // Execute schema migrations
+      const schemaPath = path.join(__dirname, 'schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        const sql = fs.readFileSync(schemaPath, 'utf8');
+        try {
+          await client.query(sql);
+          console.log('[DB] Applied schema.sql successfully');
+        } catch (schemaErr: any) {
+          if (schemaErr.message.includes('uq_code_examples_location') && !isTest) {
+            console.warn(
+              '[DB Warning] Unique index uq_code_examples_location could not be created on existing development database due to legacy duplicate rows:',
+              schemaErr.message
+            );
+          } else {
+            throw schemaErr;
+          }
+        }
+      }
+    } finally {
+      client.release();
     }
-    client.release();
     return true;
   } catch (err: any) {
     isPostgresAvailable = false;

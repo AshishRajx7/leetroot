@@ -12,6 +12,7 @@ export interface CodeExampleResult {
   rationale: string;
   productionContext: string;
   confidenceScore: number;
+  isTruncated: boolean;
   repo: {
     name: string;
     fullName: string;
@@ -76,7 +77,8 @@ export async function getExamplesByTagSlugs(
         ce.source_url AS "sourceUrl",
         ce.rationale,
         ce.production_context AS "productionContext",
-        ce.confidence_score AS "confidenceScore",
+        ce.confidence_score::float AS "confidenceScore",
+        COALESCE(ce.is_truncated, FALSE) AS "isTruncated",
         json_build_object(
           'name', r.name,
           'fullName', r.full_name,
@@ -138,6 +140,7 @@ export async function getExamplesByTagSlugs(
       rationale: e.rationale,
       productionContext: e.production_context,
       confidenceScore: parseFloat(e.confidence_score || '1.0'),
+      isTruncated: Boolean(e.is_truncated),
       repo: {
         name: repo.name,
         fullName: repo.full_name,
@@ -472,18 +475,31 @@ export async function insertCodeExample(example: {
   rationale: string;
   productionContext?: string;
   confidenceScore?: number;
+  isTruncated?: boolean;
 }): Promise<number> {
   // Enforce snippet line cap (~40 lines) to keep table lean
   const lines = example.codeSnippet.split('\n');
   const cappedSnippet = lines.slice(0, 42).join('\n');
+  const isTruncated = example.isTruncated !== undefined ? example.isTruncated : lines.length > 40;
 
   if (getIsPostgresConnected()) {
     const sql = `
       INSERT INTO code_examples (
         repo_id, scan_id, file_path, function_name, language, code_snippet,
-        start_line, end_line, source_url, rationale, production_context, confidence_score
+        start_line, end_line, source_url, rationale, production_context, confidence_score, is_truncated
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ON CONFLICT (repo_id, file_path, start_line, end_line)
+      DO UPDATE SET
+        scan_id = COALESCE(EXCLUDED.scan_id, code_examples.scan_id),
+        function_name = EXCLUDED.function_name,
+        language = EXCLUDED.language,
+        code_snippet = EXCLUDED.code_snippet,
+        source_url = EXCLUDED.source_url,
+        rationale = EXCLUDED.rationale,
+        production_context = EXCLUDED.production_context,
+        confidence_score = EXCLUDED.confidence_score,
+        is_truncated = EXCLUDED.is_truncated
       RETURNING id;
     `;
     const res = await query(sql, [
@@ -499,8 +515,30 @@ export async function insertCodeExample(example: {
       example.rationale,
       example.productionContext || '',
       example.confidenceScore || 1.0,
+      isTruncated,
     ]);
     return res.rows[0].id;
+  }
+
+  // In-memory duplicate check to ensure idempotency across duplicate jobs / retries
+  const existing = inMemoryDb.code_examples.find(
+    (e) =>
+      e.repo_id === example.repoId &&
+      e.file_path === example.filePath &&
+      e.start_line === example.startLine &&
+      e.end_line === example.endLine
+  );
+  if (existing) {
+    existing.scan_id = example.scanId || existing.scan_id;
+    existing.function_name = example.functionName || existing.function_name;
+    existing.language = example.language;
+    existing.code_snippet = cappedSnippet;
+    existing.source_url = example.sourceUrl;
+    existing.rationale = example.rationale;
+    existing.production_context = example.productionContext || existing.production_context;
+    existing.confidence_score = example.confidenceScore || existing.confidence_score;
+    existing.is_truncated = isTruncated;
+    return existing.id;
   }
 
   const id = getNextId('code_examples');
@@ -518,6 +556,7 @@ export async function insertCodeExample(example: {
     rationale: example.rationale,
     production_context: example.productionContext || '',
     confidence_score: example.confidenceScore || 1.0,
+    is_truncated: isTruncated,
   });
   return id;
 }

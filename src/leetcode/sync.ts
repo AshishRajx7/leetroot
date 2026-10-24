@@ -1,5 +1,6 @@
 import { fetchLeetCodeProblems, LeetCodeApiProblem } from './api-client';
 import { upsertProblem, upsertTag, linkProblemTag } from '../db/queries';
+import { invalidateProblemCache } from '../redis/cache';
 
 export async function syncLeetCodeCatalog(limit: number = 100): Promise<{
   syncedProblems: number;
@@ -37,6 +38,8 @@ export async function syncLeetCodeCatalog(limit: number = 100): Promise<{
 
         await linkProblemTag(problemId, tagId);
       }
+      // Invalidate cached problem entry so new/updated tags and examples are served immediately
+      await invalidateProblemCache(prob.titleSlug);
       problemCount++;
     } catch (err: any) {
       console.warn(`[LeetCode Sync] Error syncing problem ${prob.titleSlug}:`, err.message);

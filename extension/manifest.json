@@ -21,8 +21,6 @@
     "storage"
   ],
   "host_permissions": [
-    "*://leetcode.com/problems/*",
-    "*://*.leetcode.com/problems/*",
     "http://localhost:4000/*",
     "http://127.0.0.1:4000/*"
   ],
@@ -31,9 +29,6 @@
       "matches": [
         "*://leetcode.com/problems/*",
         "*://*.leetcode.com/problems/*"
-      ],
-      "css": [
-        "content/sidebar.css"
       ],
       "js": [
         "content/content.js"

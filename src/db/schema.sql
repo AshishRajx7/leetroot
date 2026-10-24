@@ -56,8 +56,16 @@ CREATE TABLE IF NOT EXISTS code_examples (
     rationale TEXT NOT NULL,
     production_context TEXT,
     confidence_score NUMERIC(3, 2) DEFAULT 1.0,
+    is_truncated BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Idempotent column addition for existing deployments
+ALTER TABLE code_examples ADD COLUMN IF NOT EXISTS is_truncated BOOLEAN DEFAULT FALSE;
+
+-- Ensure duplicate verification jobs or retries do not create duplicate examples
+CREATE UNIQUE INDEX IF NOT EXISTS uq_code_examples_location 
+ON code_examples (repo_id, file_path, start_line, end_line);
 
 -- 5. Many-to-Many Association: Code Examples <-> LeetCode Tags
 CREATE TABLE IF NOT EXISTS code_example_tags (

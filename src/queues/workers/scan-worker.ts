@@ -1,30 +1,24 @@
 import { Worker, Job } from 'bullmq';
-import axios from 'axios';
 import { config } from '../../config/env';
 import { getIsRedisConnected } from '../../redis/client';
 import { QUEUE_NAMES, RepoScanJobData, QueueManager } from '../queue-manager';
-import { CURATED_REPOS } from '../../config/curated-repos';
-import { scanFileContent } from '../../parser/tree-sitter';
+import { RepoDiscoveryService, IGitHubFetcher } from '../../scanner/repo-discovery';
+import { scanFileContentAsync, scanFileContent } from '../../parser/tree-sitter';
 import {
   upsertRepo,
   insertScan,
   updateScan,
 } from '../../db/queries';
 
-export async function processScanJob(data: RepoScanJobData): Promise<{
+export async function processScanJob(
+  data: RepoScanJobData,
+  customFetcher?: IGitHubFetcher
+): Promise<{
   candidatesCount: number;
+  commitSha: string;
 }> {
-  const repoMeta = CURATED_REPOS.find((r) => r.fullName === data.repoFullName) || {
-    name: data.repoFullName.split('/')[1] || data.repoFullName,
-    fullName: data.repoFullName,
-    url: `https://github.com/${data.repoFullName}`,
-    defaultBranch: 'main',
-    language: 'TypeScript',
-    stars: 1000,
-    description: 'Repository',
-    samplePaths: [],
-    targetPatterns: [],
-  };
+  const discoveryService = new RepoDiscoveryService(customFetcher);
+  const repoMeta = discoveryService.getCuratedRepo(data.repoFullName);
 
   const repoId = await upsertRepo({
     name: repoMeta.name,
@@ -36,44 +30,59 @@ export async function processScanJob(data: RepoScanJobData): Promise<{
     description: repoMeta.description,
   });
 
+  // Resolve immutable commit SHA
+  let commitSha = 'main';
+  try {
+    commitSha = await discoveryService.resolveCommitSha(repoMeta.fullName, repoMeta.defaultBranch);
+  } catch (err: any) {
+    console.warn(`[Scan Worker] Note: Could not resolve commit SHA for ${repoMeta.fullName} (${err.message}). Using branch ref.`);
+  }
+
   const scanId = await insertScan({
     repoId,
     status: 'running',
+    commitHash: commitSha,
   });
 
-  console.log(`[Scan Worker] Starting scan for ${repoMeta.fullName} (Scan ID: ${scanId})`);
+  console.log(`[Scan Worker] Starting scan for ${repoMeta.fullName}@${commitSha.slice(0, 7)} (Scan ID: ${scanId})`);
 
   let totalCandidates = 0;
   const queueManager = QueueManager.getInstance();
 
   try {
-    // Scan sample target paths or fetch repository files via GitHub Raw / API
-    for (const filePath of repoMeta.samplePaths) {
+    // Perform bounded file discovery
+    let filesToScan: Array<{ path: string }> = [];
+    try {
+      filesToScan = await discoveryService.discoverFiles(repoMeta.fullName, commitSha, {
+        maxFiles: 50,
+      });
+    } catch {
+      // Fallback to samplePaths if git tree fails
+      filesToScan = repoMeta.samplePaths.map((p) => ({ path: p }));
+    }
+
+    console.log(`[Scan Worker] Discovered ${filesToScan.length} eligible source files in ${repoMeta.fullName}`);
+
+    for (const file of filesToScan) {
       try {
-        const rawUrl = `https://raw.githubusercontent.com/${repoMeta.fullName}/${repoMeta.defaultBranch}/${filePath}`;
-        const headers: Record<string, string> = {};
-        if (config.github.token) {
-          headers['Authorization'] = `token ${config.github.token}`;
-        }
-
-        const res = await axios.get(rawUrl, {
-          headers,
-          timeout: 8000,
-          responseType: 'text',
-        });
-
-        const fileContent = res.data;
+        const fileContent = await discoveryService.fetchFile(repoMeta.fullName, commitSha, file.path);
         if (typeof fileContent === 'string' && fileContent.length > 0) {
-          const candidates = scanFileContent(
-            filePath,
+          // Parse using real Tree-sitter AST
+          const candidates = await scanFileContentAsync(
+            file.path,
             fileContent,
             repoMeta.url,
-            repoMeta.defaultBranch
+            commitSha
           );
 
-          totalCandidates += candidates.length;
+          // If async found none or grammar wasn't loaded, try sync parser
+          const effectiveCandidates = candidates.length > 0
+            ? candidates
+            : scanFileContent(file.path, fileContent, repoMeta.url, commitSha);
 
-          for (const cand of candidates) {
+          totalCandidates += effectiveCandidates.length;
+
+          for (const cand of effectiveCandidates) {
             await queueManager.addLLMVerifyJob({
               repoFullName: repoMeta.fullName,
               repoId,
@@ -83,7 +92,7 @@ export async function processScanJob(data: RepoScanJobData): Promise<{
           }
         }
       } catch (err: any) {
-        console.warn(`[Scan Worker] Note: Could not fetch ${filePath} directly (${err.message})`);
+        console.warn(`[Scan Worker] Skipping ${file.path} (${err.message})`);
       }
     }
 
@@ -92,15 +101,15 @@ export async function processScanJob(data: RepoScanJobData): Promise<{
       candidatesFound: totalCandidates,
     });
 
-    console.log(`[Scan Worker] Completed scan for ${repoMeta.fullName}. Found ${totalCandidates} candidates queued for NIM verification.`);
-    return { candidatesCount: totalCandidates };
+    console.log(`[Scan Worker] Completed scan for ${repoMeta.fullName}. Found ${totalCandidates} candidates queued for verification.`);
+    return { candidatesCount: totalCandidates, commitSha };
   } catch (err: any) {
     console.error(`[Scan Worker] Failed scan for ${repoMeta.fullName}:`, err.message);
     await updateScan(scanId, {
       status: 'failed',
       errorMessage: err.message,
     });
-    return { candidatesCount: 0 };
+    return { candidatesCount: 0, commitSha };
   }
 }
 
@@ -114,7 +123,7 @@ export function startScanWorker(): Worker | null {
     },
     {
       connection: { url: config.redis.url },
-      concurrency: 2, // Slow scheduled background scans
+      concurrency: 2,
     }
   );
 
